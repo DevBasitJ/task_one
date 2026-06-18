@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Classic Snake - Easy Edition</title>
+    <style>
+        body {
+            background-color: #050505;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none; 
+        }
+        
+        #hud {
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid #222;
+        }
+        .hud-item span { color: #00ffcc; }
+        .hud-gem span { color: #ffff00; }
+        
+        #game-container {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vw;
+        }
+        #game-board {
+            background-color: #0a0a0a;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1);
+            display: block;
+            border: 2px solid #222;
+        }
+
+        .screen-overlay, .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(5, 5, 5, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 9999;
+        }
+        .modal { background: #111; }
+        
+        h1 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.5); margin-bottom: 5px; font-size: 32px;}
+        h2 { color: #ff0055; margin-bottom: 10px;}
+        p { margin: 5px 0; color: #aaa; }
+        .high-score-text { color: #ffaa00; font-weight: bold; margin-bottom: 20px; font-size: 18px;}
+        
+        button {
+            background: #222; color: #fff; border: 1px solid #444; 
+            padding: 12px 20px; margin: 8px; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer;
+            transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+        }
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #222; color: #555; border-color: #333; cursor: not-allowed; }
+        
+        .btn-play { background: linear-gradient(45deg, #00ffcc, #0099ff); color: #000; padding: 15px 40px; border-radius: 25px; border: none; font-size: 20px;}
+        .btn-revive { background: linear-gradient(45deg, #ff0055, #ff5500); color: #fff; border: none;}
+        .btn-claim { background: linear-gradient(45deg, #ffd700, #ff8800); color: #000; border: none; }
+        
+        .icon-menu { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        .btn-icon { padding: 10px 15px; font-size: 20px; border-radius: 12px; background: #1a1a1a; }
+        
+        .skin-item { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 250px; background: #222; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #444;}
+        .skin-color-box { width: 20px; height: 20px; border-radius: 4px; }
+        .skin-btn { padding: 6px 12px; font-size: 14px; margin: 0; background: #333; }
+        .skin-btn.equipped { background: #00ffcc; color: #000; }
+
+        .speed-setting { display: flex; gap: 5px; margin: 15px 0; }
+        .speed-btn { padding: 8px 12px; font-size: 14px; border-radius: 8px; }
+        .speed-btn.active { background: #00ffcc; color: #000; border-color: #00ffcc; }
+        #instructions { font-size: 12px; color: #555; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-item">Score: <span id="score">0</span></div>
+        <div class="hud-gem">Gems: <span id="gems">0</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game-board" width="400" height="400"></canvas>
+    </div>
+
+    <div id="instructions">Swipe anywhere to move</div>
+
+    <div id="main-menu" class="screen-overlay" style="display: flex;">
+        <h1>NEON SNAKE</h1>
+        <div class="high-score-text">Best Score: <span id="menu-high-score">0</span></div>
+        
+        <button class="btn-play" onclick="startGame()">PLAY</button>
+        
+        <div class="icon-menu">
+            <button class="btn-icon" onclick="openModal('skins-menu')">🎨</button>
+            <button class="btn-icon" onclick="openModal('rewards-menu')">🎁</button>
+            <button class="btn-icon" onclick="openModal('settings-menu')">⚙️</button>
+            <button class="btn-icon" onclick="openModal('about-menu')">ℹ️</button>
+        </div>
+    </div>
+
+    <div id="skins-menu" class="modal" style="display: none;">
+        <h2>Snake Skins</h2>
+        <p>Your Gems: <span id="skins-gems" class="hud-gem">0</span></p>
+        <div id="skins-list"></div>
+        <button onclick="closeModal('skins-menu')" style="margin-top:20px;">Back</button>
+    </div>
+
+    <div id="rewards-menu" class="modal" style="display: none;">
+        <h2>Daily Reward</h2>
+        <h1 style="font-size: 50px; margin: 10px;">💎</h1>
+        <button id="btn-daily" class="btn-claim" onclick="claimDailyReward()">Claim 10 Gems</button>
+        <p id="reward-status" style="margin-top: 15px; color: #ffaa00;"></p>
+        <button onclick="closeModal('rewards-menu')" style="margin-top:20px;">Back</button>
+    </div>
+
+    <div id="settings-menu" class="modal" style="display: none;">
+        <h2>Settings</h2>
+        <p>Game Speed:</p>
+        <div class="speed-setting">
+            <button class="speed-btn" onclick="setSpeed(140, this)">Slow</button>
+            <button class="speed-btn active" onclick="setSpeed(100, this)">Normal</button>
+            <button class="speed-btn" onclick="setSpeed(60, this)">Fast</button>
+        </div>
+        <button id="btn-sound" onclick="toggleSound()">Sound: ON 🔊</button>
+        <button onclick="closeModal('settings-menu')" style="margin-top:20px;">Back</button>
+    </div>
+
+    <div id="about-menu" class="modal" style="display: none;">
+        <h2>About</h2>
+        <p><b>Neon Snake v1.2</b></p>
+        <p>Swipe to move. Collect Pink Dots to grow.</p>
+        <p>Every 50 points gives you 1 Gem.</p>
+        <p>Grey Blocks in the center are obstacles!</p>
+        <button onclick="closeModal('about-menu')" style="margin-top:20px;">Close</button>
+    </div>
+
+    <div id="shop-screen" class="screen-overlay" style="display: none;">
+        <h2>Game Over</h2>
+        <p>Score: <span id="final-score">0</span></p>
+        <p class="high-score-text">Best: <span id="over-high-score">0</span></p>
+        <p>Your Gems: <span id="shop-gems">0</span></p>
+        
+        <button id="btn-revive" class="btn-revive" onclick="reviveSnake()">Revive (Cost: 2 Gems)</button>
+        <button onclick="backToMenu()">Main Menu</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("game-board");
+        const ctx = canvas.getContext("2d");
+        const gridSize = 20;
+
+        // --- SAFE DATA LOADING ---
+        let totalGems = 0, highScore = 0, unlockedSkins = ['#00ffcc'], equippedSkin = '#00ffcc', lastDailyReward = '';
+        try {
+            totalGems = parseInt(localStorage.getItem('ns_gems')) || 0;
+            highScore = parseInt(localStorage.getItem('ns_highScore')) || 0;
+            if(localStorage.getItem('ns_skins')) unlockedSkins = JSON.parse(localStorage.getItem('ns_skins'));
+            equippedSkin = localStorage.getItem('ns_equippedSkin') || '#00ffcc';
+            lastDailyReward = localStorage.getItem('ns_lastDaily') || '';
+        } catch(e) {}
+
+        function saveData() {
+            try {
+                localStorage.setItem('ns_gems', totalGems);
+                localStorage.setItem('ns_highScore', highScore);
+                localStorage.setItem('ns_skins', JSON.stringify(unlockedSkins));
+                localStorage.setItem('ns_equippedSkin', equippedSkin);
+                localStorage.setItem('ns_lastDaily', lastDailyReward);
+            } catch(e) {}
+            updateUI();
+        }
+
+        const skinsDB = [
+            { id: '#00ffcc', name: 'Neon Green', price: 0 },
+            { id: '#ff00ff', name: 'Cyber Pink', price: 10 },
+            { id: '#0099ff', name: 'Plasma Blue', price: 15 },
+            { id: '#ff3366', name: 'Coral Red', price: 20 },
+            { id: '#ffd700', name: 'Pure Gold', price: 50 }
+        ];
+
+        let gameSpeed = 100, soundEnabled = true, snake = [], frameCount = 0;
+        let dx = 0, dy = -gridSize, score = 0, gameLoop, scoreMilestone = 0;
+        let food = { x: 0, y: 0 };
+        
+        // FIX: Obstacle color changed to Soft Grey
+        const walls = [{x: 180, y: 180}, {x: 200, y: 180}, {x: 180, y: 200}, {x: 200, y: 200}];
+        let touchStartX = 0, touchStartY = 0, audioCtx = null;
+
+        function initApp() { updateUI(); checkDailyRewardUI(); buildSkinsMenu(); }
+
+        function updateUI() {
+            document.getElementById("menu-high-score").innerText = highScore;
+            document.getElementById("gems").innerText = totalGems;
+            document.getElementById("skins-gems").innerText = totalGems;
+            document.getElementById("shop-gems").innerText = totalGems;
+        }
+
+        function playTone(freq, type, duration) {
+            try {
+                if (!soundEnabled || !audioCtx) return;
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+                gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+        
+        function toggleSound() { soundEnabled = !soundEnabled; document.getElementById("btn-sound").innerText = soundEnabled ? "Sound: ON 🔊" : "Sound: OFF 🔇"; }
+
+        function openModal(id) { 
+            document.getElementById(id).style.display = "flex"; 
+            if(id === 'skins-menu') buildSkinsMenu();
+            if(!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+        }
+        function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
+        function buildSkinsMenu() {
+            const container = document.getElementById("skins-list");
+            container.innerHTML = "";
+            skinsDB.forEach(skin => {
+                const isEquipped = equippedSkin === skin.id;
+                const isUnlocked = unlockedSkins.includes(skin.id);
+                let btnHtml = isEquipped ? `<button class="skin-btn equipped" disabled>Equipped</button>` : 
+                              isUnlocked ? `<button class="skin-btn" onclick="equipSkin('${skin.id}')">Equip</button>` : 
+                              `<button class="skin-btn" onclick="buySkin('${skin.id}', ${skin.price})">Buy (${skin.price}💎)</button>`;
+                container.innerHTML += `<div class="skin-item">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="skin-color-box" style="background:${skin.id};"></div>
+                            <span>${skin.name}</span>
+                        </div>${btnHtml}</div>`;
+            });
+        }
+
+        function buySkin(id, price) { if (totalGems >= price) { totalGems -= price; unlockedSkins.push(id); equipSkin(id); } }
+        function equipSkin(id) { equippedSkin = id; saveData(); buildSkinsMenu(); }
+
+        function claimDailyReward() {
+            let today = new Date().toDateString();
+            if (lastDailyReward !== today) {
+                totalGems += 10; lastDailyReward = today; saveData(); checkDailyRewardUI();
+                playTone(600, 'sine', 0.1);
+            }
+        }
+
+        function checkDailyRewardUI() {
+            let btn = document.getElementById("btn-daily"), status = document.getElementById("reward-status");
+            if (lastDailyReward === new Date().toDateString()) {
+                btn.disabled = true; btn.innerText = "Claimed!"; status.innerText = "Come back tomorrow!";
+            } else { btn.disabled = false; btn.innerText = "Claim 10 Gems"; status.innerText = "Reward Available!"; }
+        }
+
+        function setSpeed(ms, btn) { gameSpeed = ms; document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+
+        function drawSquare(x, y, color) {
+            ctx.fillStyle = color; ctx.fillRect(x, y, gridSize, gridSize);
+            ctx.strokeStyle = "#111"; ctx.strokeRect(x, y, gridSize, gridSize);
+        }
+
+        function spawnFood() {
+            food = { x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize, y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize };
+            // Ensure food doesn't spawn inside blocks
+            if(walls.some(w => w.x === food.x && w.y === food.y)) spawnFood();
+        }
+
+        function startGame() {
+            if(!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+            document.getElementById("main-menu").style.display = "none";
+            document.getElementById("shop-screen").style.display = "none";
+            
+            snake = [{ x: 200, y: 300 }, { x: 200, y: 320 }, { x: 200, y: 340 }]; // Starts with 3 blocks
+            dx = 0; dy = -gridSize; score = 0; scoreMilestone = 0; frameCount = 0;
+            document.getElementById("score").innerText = score;
+            spawnFood(); tick();
+        }
+
+        function updateState() {
+            let head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            // Eat Food (Growing Loop)
+            if (head.x === food.x && head.y === food.y) {
+                score += 10; scoreMilestone += 10;
+                document.getElementById("score").innerText = score; playTone(800, 'sine', 0.1);
+                
+                // Earn Gems
+                if (scoreMilestone >= 50) { totalGems += 1; scoreMilestone = 0; playTone(1200, 'triangle', 0.1); saveData(); }
+                spawnFood();
+            } else { 
+                snake.pop(); // Only remove tail if it didn't eat
+            }
+            frameCount++;
+        }
+
+        function checkCollisions() {
+            const head = snake[0];
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) return true;
+            if (snake.slice(1).some(part => part.x === head.x && part.y === head.y)) return true;
+            if (walls.some(w => w.x === head.x && w.y === head.y)) return true;
+            return false;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Render Walls as Soft Grey
+            walls.forEach(w => drawSquare(w.x, w.y, "#555555"));
+            
+            // Only 1 standard Pink Food dot
+            drawSquare(food.x, food.y, "#ff00ff");
+            
+            // Draw Snake
+            snake.forEach((part, index) => { drawSquare(part.x, part.y, index === 0 ? "#ffffff" : equippedSkin); });
+        }
+
+        function gameOver() {
+            clearTimeout(gameLoop);
+            
+            let shopScreen = document.getElementById("shop-screen");
+            shopScreen.style.display = "flex";
+            
+            document.getElementById("final-score").innerText = score;
+            document.getElementById("btn-revive").disabled = totalGems < 2;
+
+            playTone(200, 'sawtooth', 0.4); 
+            if (score > highScore) { highScore = score; saveData(); }
+            document.getElementById("over-high-score").innerText = highScore;
+        }
+
+        function reviveSnake() {
+            if (totalGems >= 2) {
+                totalGems -= 2; saveData();
+                snake = [{ x: 200, y: 300 }]; dx = 0; dy = -gridSize;
+                document.getElementById("shop-screen").style.display = "none"; tick(); 
+            }
+        }
+
+        function backToMenu() { document.getElementById("shop-screen").style.display = "none"; document.getElementById("main-menu").style.display = "flex"; updateUI(); }
+
+        function tick() {
+            if (checkCollisions()) { gameOver(); return; }
+            updateState(); render(); gameLoop = setTimeout(tick, gameSpeed);
+        }
+
+        // --- CONTROLS ---
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -gridSize; }
+            else if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = gridSize; }
+            else if (e.key === "ArrowLeft" && dx === 0) { dx = -gridSize; dy = 0; }
+            else if (e.key === "ArrowRight" && dx === 0) { dx = gridSize; dy = 0; }
+        });
+
+        document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const diffX = e.changedTouches[0].screenX - touchStartX, diffY = e.changedTouches[0].screenY - touchStartY;
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (Math.abs(diffX) > 30) { if (diffX > 0 && dx === 0) { dx = gridSize; dy = 0; } else if (diffX < 0 && dx === 0) { dx = -gridSize; dy = 0; } }
+            } else {
+                if (Math.abs(diffY) > 30) { if (diffY > 0 && dy === 0) { dx = 0; dy = gridSize; } else if (diffY < 0 && dy === 0) { dx = 0; dy = -gridSize; } }
+            }
+        }, { passive: true });
+
+        initApp();
+    </script>
+</body>
+</html>
